@@ -1,14 +1,17 @@
-clc;clear all; close all;
+clc;
+clear all; 
+close all;
 
 trafficObj = mmreader('00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
-se = strel('disk',2);
+se = strel('disk',3);
 
 width = 2; %velikost znacici kostky
 bcg = get_background(trafficObj,50);
 I = read(trafficObj, 1);
-fig=figure;
-rec = avifile('motion2.avi','Compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
+fig = figure(1);
+set(gcf,'Units','normalized','OuterPosition',[0 0 1 1]);
+rec = avifile('motion2.avi', 'fps', get(trafficObj, 'FrameRate'  ));
 %taggedCars = zeros([size(I,1) size(I,2) 3 nframes], class(I));
 M = fspecial('laplacian', 0.2);
 
@@ -18,6 +21,9 @@ for i=2:nframes
     I2 = I;
     I = rgb2gray(read(trafficObj, i));
     edg = imopen(abs(I-bcg),se)>20;
+    subplot(1,2,1);
+    imshow(read(trafficObj, i));
+    subplot(1,2,2);
     imshow(edg);
     s = regionprops(edg, {'Centroid'});
     if ~isempty(s)
