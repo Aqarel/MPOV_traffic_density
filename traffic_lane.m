@@ -2,11 +2,11 @@ clc;
 clear all; 
 close all;
 
-trafficObj = mmreader('00026.avi'); %nactu video
+trafficObj = mmreader('../00026.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 
 bcg = get_background(trafficObj,50);
-
+bcg = rgb2gray(bcg);
 %%
 close all;
 

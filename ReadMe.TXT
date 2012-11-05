@@ -1,18 +1,19 @@
 Úkoly:
 1) úprava videa - prokládání, rozložení na snímky? (zrychlení algoritmu?), filtrace?
 2) Návrh Gui
-3) Vytvoøení modelu pozadí - Model prostøedí poèítat ve finále pomocí mediánu - robustnìjší než metoda prùmìrování
-5) Detekce jízdních pruhù 
-6) Detekce pohybujících se objektù - hranové detektory, metoda rozdílu modelu a snímku
-7) Klasifikace automobilù - 
+3) Vytvorení modelu pozadí - Model prostredí pocítat ve finále pomocí mediánu - robustnejší než metoda prumerování
+5) Detekce jízdních pruhu 
+6) Detekce pohybujících se objektu - hranové detektory, metoda rozdílu modelu a snímku
+7) Klasifikace automobilu - 
 8) Optimalizace
-9) Poèítání oveèek
+9) Pocítání ovecek
 10) Dokumentace
 
 Zdroje:
 http://www.vutbr.cz/www_base/zav_prace_soubor_verejne.php?file_id=26890
 
 Problémy:
-- detekce pruhù - mùže je definovat uživatel? Jak øešit, když v pruhu projede jen nìkolik málo aut
-- má detekce aut probíhat v reálném èase?
-
+- detekce pruhu - muže je definovat uživatel? Jak rešit, když v pruhu projede jen nekolik málo aut
+- má detekce aut probíhat v reálném case?
+- okolo 216 snimku algritmus zkolabuje, pravdepodobne mrak, nebo neco to rozhodi. Treba si vic pohrat s prahama. Monza ten median pomuze.
+- nebylo by lepsi delat detekci cistym rozdilem jednotlivych snimku a pak hodit prah?
