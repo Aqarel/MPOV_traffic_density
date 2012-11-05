@@ -11,3 +11,8 @@
 
 Zdroje:
 http://www.vutbr.cz/www_base/zav_prace_soubor_verejne.php?file_id=26890
+
+Problémy:
+- detekce pruhù - mùže je definovat uživatel? Jak øešit, když v pruhu projede jen nìkolik málo aut
+- má detekce aut probíhat v reálném èase?
+
