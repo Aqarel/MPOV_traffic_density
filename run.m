@@ -20,7 +20,7 @@ for i=2:nframes
     title(sprintf('%3.2f%% done', i/nframes*100));
     I2 = I;
     I = rgb2gray(read(trafficObj, i));
-    edg = imopen(abs(I-bcg),se)>20;
+    edg = imopen((I-bcg)+(bcg-I),se)>20;
     subplot(1,2,1);
     imshow(read(trafficObj, i));
     subplot(1,2,2);
