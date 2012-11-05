@@ -45,6 +45,12 @@ for i=1:nframes
     %rec = addframe(rec, uint8(ed));
 %     imshow(ed);
 end
+
+-%frametare =  get(trafficObj, 'FrameRate'  );
+-%movie2avi(mov, 'motion.avi', 'compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
+-%frameRate = get(trafficObj,'FrameRate');
+-%implay(taggedCars,frameRate);
+
 close(h)
 % close(rec)
 % clear(rec)
