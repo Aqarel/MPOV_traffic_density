@@ -1,49 +1,50 @@
-clc;
-clear all; 
-close all;
+clc;clear all; close all;
 
-trafficObj = mmreader('00012.avi'); %nactu video
+trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
-se = strel('disk',3);
-
+se = strel('disk',2);
 width = 2; %velikost znacici kostky
-bcg = get_background(trafficObj,50);
-I = read(trafficObj, 1);
-fig = figure(1);
-set(gcf,'Units','normalized','OuterPosition',[0 0 1 1]);
-rec = avifile('motion2.avi', 'fps', get(trafficObj, 'FrameRate'  ));
-%taggedCars = zeros([size(I,1) size(I,2) 3 nframes], class(I));
-M = fspecial('laplacian', 0.2);
+H = fspecial('gaussian', 5, 0.7);
+% rec = avifile('motion3.avi','Compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
 
-for i=2:nframes
-    %imshow(I);
-    title(sprintf('%3.2f%% done', i/nframes*100));
-    I2 = I;
-    I = rgb2gray(read(trafficObj, i));
-    edg = imopen((I-bcg)+(bcg-I),se)>20;
+try
+    bcg= double(imread('bcg.bmp'));
+catch Me
+    bcg = get_background(trafficObj,50);
+    imwrite(bcg, 'bcg.bmp');
+end
+bcg = double(bcg);
+fig = figure;
+%h = waitbar(0, 'processing');
+
+for i=1:nframes
+    %waitbar(i/nframes, h);
+    I = double(read(trafficObj, i));
+    diff = abs(bcg-I) + abs(I-bcg);
+    ss = sqrt(sum(diff.^2,3));
+    ed = imopen(ss>40, strel('disk',3)); %prahovani s filtraci
+    bw = bwareaopen(ed, 1000); %vybereme pouze plochy, ktere maji vic, jak 1000px
+    cc = bwconncomp(bw);
+    s = regionprops(cc, {'Centroid', 'Area'});
+    
     subplot(1,2,1);
-    imshow(read(trafficObj, i));
+    title(sprintf('snimek c.%d', i))
+    imshow(uint8(I))
     subplot(1,2,2);
-    imshow(edg);
-    s = regionprops(edg, {'Centroid'});
+    imshow(bw,[]);
+    
     if ~isempty(s)
+        title(sprintf('%d detekovanych objektu', cc.NumObjects));
         centroids = cat(1,s.Centroid);
         hold on
         plot(centroids(:,1), centroids(:,2), 'b*');
         hold off
-        rec = addframe(rec,  getframe(fig));
+        %rec = addframe(rec,  getframe(fig));
     end
+    
+    %rec = addframe(rec, uint8(ed));
+%     imshow(ed);
 end
-close(rec)
-clear all %vyprazdnit buffer
-
-
-%frametare =  get(trafficObj, 'FrameRate'  );
-%movie2avi(mov, 'motion.avi', 'compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
-%frameRate = get(trafficObj,'FrameRate');
-%implay(taggedCars,frameRate);
-
-% hold on
-% 
-% figure(2) 
-% imshow(regions)
+close(h)
+% close(rec)
+% clear(rec)
