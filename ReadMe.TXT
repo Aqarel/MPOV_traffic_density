@@ -17,3 +17,4 @@ Problémy:
 - má detekce aut probíhat v reálném case?
 - okolo 216 snimku algritmus zkolabuje, pravdepodobne mrak, nebo neco to rozhodi. Treba si vic pohrat s prahama. Monza ten median pomuze.
 - nebylo by lepsi delat detekci cistym rozdilem jednotlivych snimku a pak hodit prah?
+- Tahle posledni metoda je strasne vykonove narocna, co ji delat treba jednou za sec a pak ty stredy vyuzit pro shlukovou analyzu na jednoduchou derivaci snimku?
