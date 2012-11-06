@@ -2,20 +2,22 @@ clc;clear all; close all;
 
 trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
-se = strel('disk',2);
+se = strel('disk',3); % fill a gap
 width = 2; %velikost znacici kostky
 %filtracni masky
-H = fspecial('gaussian', 5, 0.7);
+H = fspecial('gaussian', 3, 0.7);
 Sx = fspecial('prewit');
 Sy = Sx';
-P = fspecial('average',10);
+P = fspecial('average',12);
 % rec = avifile('motion3.avi','Compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
 
 try
     bcg= double(imread('bcg.bmp'));
+    edg_bcg= double(imread('edg_bcg.bmp'));
 catch Me
-    bcg = get_background(trafficObj,50);
+    [bcg, edg_bcg] = get_background(trafficObj,50, Sx);
     imwrite(bcg, 'bcg.bmp');
+    imwrite(uint8(edg_bcg), 'edg_bcg.bmp');
 end
 bcg = double(bcg);
 %fig = figure;
@@ -31,14 +33,15 @@ for i=1:nframes
     
     Ax = imfilter(ss, Sx);
     Ay = imfilter(ss, Sy);
-    edg = sqrt(Ax.*Ax + Ay.*Ay); % hranovy filtr
+    edg = sqrt(Ax.*Ax + Ay.*Ay)-edg_bcg; % hranovy filtr
     
     sa = imadd(ss,edg)>120; %slouceni prahu s rozdilem 
     ed = imopen(sa, strel('disk',1)); % prahovani / filtr
     edp = imfilter(ed,P); %prumerovani okoli
-    bw = bwareaopen(edp, 500); % odstraneni malych ploch
-    bw2 = imfill(bw, 'holes'); %vyplneni der
-    cc = bwconncomp(bw2); % Find connected components in binary image
+    edp = imfilter(edp,P); %druhe kolo prumerovani
+    bw = bwareaopen(edp, 1000); % odstraneni malych ploch
+    %bw2 = imfill(bw, 'holes'); %vyplneni der
+    cc = bwconncomp(bw); % Find connected components in binary image
     s = regionprops(cc, {'Centroid', 'Area'});
     
     subplot(1,2,1);
