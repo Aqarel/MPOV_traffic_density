@@ -16,5 +16,8 @@ Problémy:
 - detekce pruhu - muže je definovat uživatel? Jak rešit, když v pruhu projede jen nekolik málo aut
 - má detekce aut probíhat v reálném case?
 - okolo 216 snimku algritmus zkolabuje, pravdepodobne mrak, nebo neco to rozhodi. Treba si vic pohrat s prahama. Monza ten median pomuze.
+	- nemelo by stacit delat prumer treba z 30 snimku? viz diplomka v doc
 - nebylo by lepsi delat detekci cistym rozdilem jednotlivych snimku a pak hodit prah?
 - Tahle posledni metoda je strasne vykonove narocna, co ji delat treba jednou za sec a pak ty stredy vyuzit pro shlukovou analyzu na jednoduchou derivaci snimku?
+	- zkusit se to muze
+- v repu je stara verze get_background - script run nejde tedy spustit
