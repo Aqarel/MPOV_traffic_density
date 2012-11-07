@@ -11,6 +11,7 @@
 
 Zdroje:
 http://www.vutbr.cz/www_base/zav_prace_soubor_verejne.php?file_id=26890
+http://www.mathworks.com/help/images/functionlist.html
 
 Problémy:
 - detekce pruhu - muže je definovat uživatel? Jak rešit, když v pruhu projede jen nekolik málo aut
@@ -19,5 +20,5 @@ Problémy:
 	- nemelo by stacit delat prumer treba z 30 snimku? viz diplomka v doc
 - nebylo by lepsi delat detekci cistym rozdilem jednotlivych snimku a pak hodit prah?
 - Tahle posledni metoda je strasne vykonove narocna, co ji delat treba jednou za sec a pak ty stredy vyuzit pro shlukovou analyzu na jednoduchou derivaci snimku?
-	- zkusit se to muze
+	- zkusit se to muze, ale nejdriv bych zkusil snizit rozliseni videa
 - v repu je stara verze get_background - script run nejde tedy spustit
