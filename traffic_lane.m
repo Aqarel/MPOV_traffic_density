@@ -18,16 +18,16 @@ maxx = 200;
 figure(1);
 title('Traffic lanes');
 set(gcf,'Units','normalized','OuterPosition',[0 0 1 1]);
-for i=1:maxx
-    waitbar(i/maxx, h);
+for i=1:round(nframes/500):nframes
+    waitbar(i/nframes, h);
     I = rgb2gray(read(trafficObj, i));
     temp = imopen(double((I - bcg)+(bcg - I)),se) > 20;
     summ = summ + temp;
     
-    subplot(1,2,1);
-imshow(I,[]);
-subplot(1,2,2);
-imshow(summ,[]);
+  %  subplot(1,2,1);
+%imshow(I,[]);
+%subplot(1,2,2);
+%imshow(summ,[]);
 end
 close(h);
 figure(2);
