@@ -1,0 +1,10 @@
+Hello, I am ToDo list for XP
+============================
+- better calculate threshold
+- try another videous
+- generalize function GetRoadBoundary
+- use structure for road parametres
+- Go sleep after dinner :) or not o:) 
+
+Hi, I am ToDo List for Daniel if you need me :)
+================================================

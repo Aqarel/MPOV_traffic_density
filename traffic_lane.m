@@ -16,19 +16,22 @@ hist = round(255.*hist./max(hist)); % Normalize histogram
 thRoad1 = 0;
 thRoad2 = 0;
 thRoadFind = false;
-for i=255:-1:2
+for i=255:-1:2                               % calculate threshold
    if thRoadFind == false
-       if (hist(i) - hist(i - 1)) >= 3
-           thRoad2 = round(i*1.05);                  % Get threshold for lines on road
+       if (hist(i) - hist(i - 1)) >= 2
+           thRoad2 = round(i*1.15);                  % Get threshold for lines on road
            thRoadFind = true;
        end
    else
-       if (hist(i) - hist(i - 1)) <= 1
+       if (hist(i) - hist(i - 1)) <= 1 
            thRoad1 = i;                         % Get threshold for lines on road
            break;
        end  
    end
 end
+
+thRoad1 = 80;       % Optimalize by me :], from histogram, only for test
+thRoad2 = 130;
 
 if (thRoad1 == 0) || (thRoad2 == 0)
     error('Threshold not found.');
@@ -36,17 +39,34 @@ end
 
 
 
-roadSeg = (bcgB > thRoad1) == (bcgB < thRoad2);
-roadFilter = strel('disk',10);
-roadSeg = imopen(roadSeg, roadFilter);
-%roadSeg = roadSeg ~= 1;
-%roadFilter = strel('disk',20);
-%roadSeg = imopen(roadSeg, roadFilter);
+roadSeg = (bcgB > thRoad1) == (bcgB < thRoad2);     % Segmentation of road
+roadFilter = strel('disk',10);          
+roadSeg = imopen(roadSeg, roadFilter);              % filter small object
+
+regions = regionprops(roadSeg, 'Area');             % properties of picture
+surfaces = cat(1, regions.Area);                    % size of surfaces
+surfacesSort = sort(surfaces,'descend');            % sorting
+
+idRoad1 = find(surfacesSort(1) == surfaces);        % find biggest surface
+idRoad2 = find(surfacesSort(2) == surfaces);        % find second biggest surface
+
+idIm = bwlabel(roadSeg);                            % labeling of surface in image
+
+road1 = idIm == idRoad1;                            % get left road
+road2 = idIm == idRoad2;                            % get right road
+
+bound1 = GetRoadBoundary(road1);                    % get boundary of road 1
+bound2 = GetRoadBoundary(road2);                    % get boundary of road 2
+
+% NOT USED
 roadLightLines = bcgB > thRoad2;
 %roadLightLines = imopen(roadLightLines, strel('disk',3));
-roadLines = roadSeg == roadLightLines;
+roadLines = roadSeg + roadLightLines;
+%%%%%%%%%%
 
-% Show my masterpieces
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Show my masterpieces %
+%%%%%%%%%%%%%%%%%%%%%%%%
 figure(1);
 subplot(2,3,1);
 imshow(bcgB,[]);
@@ -59,7 +79,28 @@ imshow(roadLightLines,[]);
 subplot(2,3,6);
 imshow(roadLines,[]);
 
+figure(2);
+subplot(2,2,1);
+imshow(road1);
+hold on;
+for i=1:3
+   plot(bound1(:,1,i),bound1(:,2,i),'LineWidth',4); 
+end
 
+subplot(2,2,2);
+imshow(road2);
+hold on;
+for i=1:3
+   plot(bound2(:,1,i),bound2(:,2,i),'LineWidth',4); 
+end
+
+subplot(2,2,3:4);
+imshow(bcg);
+hold on;
+for i=1:3
+   plot(bound1(:,1,i),bound1(:,2,i),'LineWidth',4); 
+   plot(bound2(:,1,i),bound2(:,2,i),'LineWidth',4); 
+end
 
 
 
