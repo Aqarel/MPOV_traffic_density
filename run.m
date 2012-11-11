@@ -1,4 +1,6 @@
 clc;clear all; close all;
+%check for presence of Intel Integrated Performance Primitives (Intel IPP) library
+iptsetpref('UseIPPL', ippl)
 
 trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
@@ -30,23 +32,24 @@ for i=1:nframes
     D = I./bcg; % rozdiln smiku od pozadi
     M = D<1; % binarni maska rozdilnych pixelu
     bcg = bcg + (0.1*(1-M)+0.01*M).*D; %aktualizovat pozadi
-    D = bgremove(I,bcg, 15);
+    D = bgremove(I,bcg, 20);
    % bw = bwmorph(D,'erode',2); %erode to remove small moise
     bw = bwmorph(D,'close');
-    bw2 = imfilter(bw, P); %spojeni prumerovanim - pomale
-    bo = bwareaopen(bw2, 1000); % odstraneni malych ploch
+    %bw2 = imfilter(bw, P); %spojeni prumerovanim - pomale
+    bo = bwareaopen(bw, 1000); % odstraneni malych ploch
     cc = bwconncomp(bo); % Find connected components in binary image
-    s = regionprops(cc, {'Centroid'});
+    s = regionprops(cc, {'Centroid', 'FilledImage'});
     
     subplot(1,2,1);
-    title(sprintf('snimek c.%d', i))
-    imshow(uint8(I))
+    imshow(uint8(I));
+    title(sprintf('snimek c.%d', i));
     subplot(1,2,2);
     imshow(bw,[]);
     
     if ~isempty(s)
         title(sprintf(' detekovanych objektu: %d', cc.NumObjects));
         centroids = cat(1,s.Centroid);
+        %boxes = cat(1,s.FilledImage);
         hold on
         plot(centroids(:,1), centroids(:,2), 'b*');
         hold off

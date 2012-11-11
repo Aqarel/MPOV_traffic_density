@@ -7,3 +7,6 @@ Hello, I am ToDo list for XP
 
 Hi, I am ToDo List for Daniel if you need me :)
 ================================================
+
+- Odladit prahovani, nalezt pravidlo pro adaptivni prahovani
+- Implementovat kalmanuv filtr a konecne zacit pocitat
