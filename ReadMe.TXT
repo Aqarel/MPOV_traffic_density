@@ -12,6 +12,8 @@
 Zdroje:
 http://www.vutbr.cz/www_base/zav_prace_soubor_verejne.php?file_id=26890
 http://www.mathworks.com/help/images/functionlist.html
+http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.84.9651&rep=rep1&type=pdf
+http://www.inf.ed.ac.uk/teaching/courses/av/index.html
 
 Problémy:
 - detekce pruhu - muže je definovat uživatel? Jak rešit, když v pruhu projede jen nekolik málo aut

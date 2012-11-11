@@ -12,7 +12,7 @@ for i=1:round(nframes/n):nframes
     R = R + double(read(Obj,i));
 end
     
-R = uint8(R/n);
+R = R/n;
 close(h)
 
 end
