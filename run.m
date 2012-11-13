@@ -1,17 +1,21 @@
 clc;clear all; close all;
 %check for presence of Intel Integrated Performance Primitives (Intel IPP) library
-iptsetpref('UseIPPL', ippl)
+if ippl
+    iptsetpref('UseIPPL', true)
+    disp('IPPL library loaded')
+else
+    disp('IPP not found')
+end
 
 trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
-se = strel('disk',4); % fill a gap
-width = 2; %velikost znacici kostky
-%filtracni masky
-G = fspecial('gaussian', 3, 0.7);
-H = fspecial('log', 3, 0.7);
-P = fspecial('average',5);
-% rec = avifile('motion3.avi','Compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
+duration = get(trafficObj, 'Duration'); % delka videa
 
+se = strel('square',10); % fill a gap
+width = 2; %velikost znacici kostky
+
+% rec = avifile('motion3.avi','Compression', 'FFDS', 'fps', get(trafficObj, 'FrameRate'  ));
+disp('getting bacground image...');
 try
     bcg= double(imread('bcg.bmp'));
     %edg_bcg= double(imread('edg_bcg.bmp'));
@@ -20,10 +24,16 @@ catch Me
     imwrite(uint8(bcg), 'bcg.bmp');
     %imwrite(uint8(edg_bcg), 'edg_bcg.bmp');
 end
-
-%fig = figure;
+disp('separating traffic lines...')
+trafficLane = GetTrafficLane(bcg,0);
+L = trafficLane.surfLeft(:,:,1) + trafficLane.surfLeft(:,:,2);
+R = trafficLane.surfRight(:,:,1) + trafficLane.surfRight(:,:,2);
+LR = L+R;
+fig = figure;
+set(fig,'Renderer','OpenGL')
+opengl verbose 
 %h = waitbar(0, 'processing');
-
+disp('counting cars...')
 for i=1:nframes
     %waitbar(i/nframes, h);
     I = double(read(trafficObj, i));
@@ -31,27 +41,36 @@ for i=1:nframes
     
     D = I./bcg; % rozdiln smiku od pozadi
     M = D<1; % binarni maska rozdilnych pixelu
-    bcg = bcg + (0.1*(1-M)+0.01*M).*D; %aktualizovat pozadi
+    bcg = bcg + (0.2*(1-M)+0.02*M).*D; %aktualizovat pozadi
     D = bgremove(I,bcg, 20);
-   % bw = bwmorph(D,'erode',2); %erode to remove small moise
+    %bw = bwmorph(D,'erode',2); %erode to remove small moise
     bw = bwmorph(D,'close');
     %bw2 = imfilter(bw, P); %spojeni prumerovanim - pomale
-    bo = bwareaopen(bw, 1000); % odstraneni malych ploch
-    cc = bwconncomp(bo); % Find connected components in binary image
-    s = regionprops(cc, {'Centroid', 'FilledImage'});
     
+    %bw = imopen(D, se);
+    
+    bo = imopen(bw.*LR,se);
+    cc = bwconncomp(bo); % separovat prvni jizdni pruh
+    L1 = regionprops(cc , {'Centroid', 'Area','BoundingBox'});
+    idx = [L1.Area] > 1000; %vyprat pouze plochy s velkou plochou
+
     subplot(1,2,1);
     imshow(uint8(I));
     title(sprintf('snimek c.%d', i));
     subplot(1,2,2);
-    imshow(bw,[]);
+    imshow(bo,[]);
     
-    if ~isempty(s)
-        title(sprintf(' detekovanych objektu: %d', cc.NumObjects));
-        centroids = cat(1,s.Centroid);
-        %boxes = cat(1,s.FilledImage);
+    if ~isempty(L1)
+        title(sprintf(' detekovanych objektu: %d', sum(idx)));
+        centroids = cat(1,L1.Centroid);
+        boxes = cat(1,L1.BoundingBox);
         hold on
-        plot(centroids(:,1), centroids(:,2), 'b*');
+        subplot(1,2,1);
+        for r=find(idx==1) % draw bounding boxes
+            rectangle('Position',boxes(r,:));
+        end
+        subplot(1,2,2);
+        plot(centroids(idx,1), centroids(idx,2), 'b*');
         hold off
         %rec = addframe(rec,  getframe(fig));
     end
