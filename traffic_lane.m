@@ -26,7 +26,7 @@ imgCount = size(IM_PATH);
 for j = 1:imgCount(1)
     bcg = imread([IM_PATH(j,:) '.png']);
     roadLane = GetTrafficLane(bcg,false);
-    save([IM_PATH(j,:) '.mat'],'roadLane');
+    %save([IM_PATH(j,:) '.mat'],'roadLane');
     
     figure(2);
     subplot(3,4,j * 2 - 1);
