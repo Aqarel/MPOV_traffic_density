@@ -88,6 +88,7 @@ if ~isequal(FileName,0)                                     % If correct select 
     [non name] = fileparts(FileName);                       % separe filen name and extension
     handles.FilePath = FilePath;
     handles.FileName = name; 
+    handles.Video = mmreader(fullfile(handles.FilePath, [handles.FileName '.avi'])); %nactu video
     if exist(fullfile(FilePath, [name '.mat']),'file') ~= 0         % Exists parameters of the road?
         if exist(fullfile(FilePath, [name '.png']),'file') ~= 0 % Exists background ?
             set(handles.btnParamShow, 'Enable', 'on');
@@ -165,8 +166,7 @@ function btnParamGen_Callback(hObject, eventdata, handles)
 % hObject    handle to btnParamGen (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-trafficObj = mmreader(fullfile(handles.FilePath, [handles.FileName '.avi'])); %nactu video
-bcg = uint8(get_background(trafficObj,30));
+bcg = uint8(get_background(handles.Video,30));
 imwrite(bcg,fullfile(handles.FilePath, [handles.FileName '.png']),'png');
 roadLane = GetTrafficLane(bcg,false);
 save(fullfile(handles.FilePath, [handles.FileName '.mat']),'roadLane');
@@ -218,7 +218,7 @@ function btnVideoGen_Callback(hObject, eventdata, handles)
 % hObject    handle to btnVideoGen (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+DetectTraffic(handles.ImageBcg,handles.ImageParam,handles.Video);
 
 % --- Executes on button press in btnVideoOpen.
 function btnVideoOpen_Callback(hObject, eventdata, handles)
