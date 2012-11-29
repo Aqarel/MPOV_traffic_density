@@ -7,20 +7,6 @@ else
     disp('IPP not found')
 end
 
-
-% Kalman filter initialization
-Rk=[[0.2845,0.0045]',[0.0045,0.0455]'];
-Hk=[[1,0]',[0,1]',[0,0]',[0,0]'];
-Q=0.01*eye(4);
-P = 100*eye(4);
-dt=1;
-A=[[1,0,0,0]',[0,1,0,0]',[dt,0,1,0]',[0,dt,0,1]'];
-g = 6; % pixels^2/time step
-Bu = [0,0,0,g]';
-kfinit=0;
-x=zeros(1,4);
-
-
 trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
@@ -41,6 +27,22 @@ end
 
 [MR,MC] = size(bcg);
 
+% Kalman filter initialization
+Rk=[[0.2845,0.0045]',[0.0045,0.0455]'];
+Hk=[[1,0]',[0,1]',[0,0]',[0,0]'];
+Q=0.01*eye(4);
+P = 100*eye(4);
+dt=1;
+A=[[1,0,0,0]',[0,1,0,0]',[dt,0,1,0]',[0,dt,0,1]'];
+g = 6; % pixels^2/time step
+Bu = [0,0,0,g]';
+kfinit=0;
+x=zeros(1,4);
+xp_init = [MC/2,MR/2,0,0]';
+% strukt init
+
+s_init = struct('R', Rk, 'Q', Q, 'P',P, 'x', x, 'init', 0); % init strukt
+cars = s_init; % structure array
 
 disp('separating traffic lines...')
 trafficLane = GetTrafficLane(bcg,0);
@@ -51,6 +53,8 @@ fig = figure(1);
 subplot(1,2,1);
 h = waitbar(0, 'processing');
 disp('counting cars...')
+
+
 for i=1:nframes
     tic
     waitbar(i/nframes, h);
@@ -94,22 +98,37 @@ for i=1:nframes
         plot(cc, cr, 'b*');
         
         %kalman
-        
-        if kfinit==0
-            xp = [MC/2,MR/2,0,0]';
-        else
-            xp=A*x(i-1,:)' + Bu;
+        if i ==1;
+            for j = 1:sum(idx) %init vector
+                cars(j) = s_init; 
+            end
         end
-        kfinit=1;
-        PP = A*P*A' + Q;
-        Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk);
-        x(i,:) = (xp + Kk*([cc(1),cr(1)]' - Hk*xp))';
-        P = (eye(4)-Kk*Hk)*PP;
-        %end of klaman
+        
+        if size(cars,2)-sum(idx)< 0% add new detected car
+                cars(size(cars,2)+1) = s_init;
+        end
+                
+        for j = (size(cars,2) - sum(idx))+1:sum(idx)
+            if cars(j).init == 0
+                xp = xp_init;
+                cars(j).init = 1;
+            else
+                xp=A*cars(j).x(i-1,:)' + Bu;
+            end
+            PP = A*cars(j).P*A' + cars(j).Q;
+            Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk);
+            cars(j).x(i,:) = (xp + Kk*([cc(j),cr(j)]' - Hk*xp))';
+            cars(j).P = (eye(4)-Kk*Hk)*PP;
+            %end of klaman
+        end
+        
+        
         toc
         
         %plot kalman prediction
-        plot(x(:,1),x(:,2), 'r-');
+        for j = (size(cars,2) - sum(idx))+1:size(cars,2)
+            plot(cars(j).x(:,1),cars(j).x(:,2), 'r-');
+        end
         hold off
         
     end
