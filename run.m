@@ -7,6 +7,20 @@ else
     disp('IPP not found')
 end
 
+
+% Kalman filter initialization
+Rk=[[0.2845,0.0045]',[0.0045,0.0455]'];
+Hk=[[1,0]',[0,1]',[0,0]',[0,0]'];
+Q=0.01*eye(4);
+P = 100*eye(4);
+dt=1;
+A=[[1,0,0,0]',[0,1,0,0]',[dt,0,1,0]',[0,dt,0,1]'];
+g = 6; % pixels^2/time step
+Bu = [0,0,0,g]';
+kfinit=0;
+x=zeros(1,4);
+
+
 trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
@@ -24,6 +38,10 @@ catch Me
     imwrite(uint8(bcg), 'bcg.bmp');
     %imwrite(uint8(edg_bcg), 'edg_bcg.bmp');
 end
+
+[MR,MC] = size(bcg);
+
+
 disp('separating traffic lines...')
 trafficLane = GetTrafficLane(bcg,0);
 L = trafficLane.surfLeft(:,:,1) + trafficLane.surfLeft(:,:,2);
@@ -61,6 +79,7 @@ for i=1:nframes
     imshow(bw,[]);
     
     if ~isempty(L1)
+        
         title(sprintf(' detekovanych objektu: %d', sum(idx)));
         centroids = cat(1,L1.Centroid);
         boxes = cat(1,L1.BoundingBox);
@@ -69,10 +88,30 @@ for i=1:nframes
         for r=find(idx==1) % draw bounding boxes
             rectangle('Position',boxes(r,:));
         end
+        cc = centroids(idx,1);
+        cr = centroids(idx,2);
         subplot(1,2,2);
-        plot(centroids(idx,1), centroids(idx,2), 'b*');
-        hold off
+        plot(cc, cr, 'b*');
+        
+        %kalman
+        
+        if kfinit==0
+            xp = [MC/2,MR/2,0,0]';
+        else
+            xp=A*x(i-1,:)' + Bu;
+        end
+        kfinit=1;
+        PP = A*P*A' + Q;
+        Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk);
+        x(i,:) = (xp + Kk*([cc(1),cr(1)]' - Hk*xp))';
+        P = (eye(4)-Kk*Hk)*PP;
+        %end of klaman
         toc
+        
+        %plot kalman prediction
+        plot(x(:,1),x(:,2), 'r-');
+        hold off
+        
     end
 %     rec = addframe(rec,  getframe(fig));
 %     rec = addframe(rec, im2frame(uint8(bo), cmap));
