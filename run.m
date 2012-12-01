@@ -90,8 +90,6 @@ for i=1:nframes
     imshow(bw,[]);
     
     if ~isempty(L1)
-        
-        title(sprintf(' detekovanych objektu: %d', sum(idx)));
         centroids = cat(1,L1.Centroid);
         centroids = round(centroids(idx, 1:2)); % delete noise
         b = [];
@@ -100,11 +98,13 @@ for i=1:nframes
                 b = [b j];
             end
         end
+        title(sprintf(' sledovanych objektu: %d\n celkem vozidel: %d'...
+                        , sum(idx), COUNTED));
         hold on
         co = centroids(b,:);
-        centroids(b,:) = [];
-        if size(co,1)>0
-            plot(co(1), co(2), 'ro'); % mark centroids - not counted
+%         centroids(b,:) = [];
+        if size(co,1)>0 % mark centroids - not counted
+            plot(co(1), co(2), 'ro'); 
         end 
         
         hold on
@@ -117,14 +117,17 @@ for i=1:nframes
         cr = centroids(:,2);
         subplot(1,2,2);
         plot(cc, cr, 'b*');
+        plot(centroids(b,1), centroids(b,2), 'bo');
         
         %kalman - predikce polohy vozu
 
-        while size(cars,2)-sum(idx)-size(counted_cars,2)+1< 0% add new detected car
+        while size(cars,2)-sum(idx)+size(b,2)< 0% add new detected car
                 cars(size(cars,2)+1) = s_init;
+                COUNTED = COUNTED+1;
         end
                 
-        for j = 1:size(centroids,2)
+        to_remove = [];
+        for j = 1:size(cars,2)
             if cars(j).x(1) == 0
                 xp = xp_init;
             else
@@ -132,35 +135,48 @@ for i=1:nframes
                 dx = cc - cars(j).x(end,1); % prirazeni spravneho bodu
                 dy = cr - cars(j).x(end,2);
                 d = dx.^2 + dy.^2;
-                ck = find(d == min(d));
+                ck = find(d == min(d)); % index hledaneho centroidu
+                for bb = b % mame vozilo(a) mame mimo slodovane pruhy
+                    if sum([cc(ck) cr(ck)] == centroids(bb,:)) == 2 % vozidlo se dostalo za prah
+                      if counted_cars(1).x(1) == 0
+                         counted_cars(1) = cars(j); %prvni zapoctene auto
+                      else
+                         counted_cars(size(counted_cars,2)+1) = cars(j);
+                      end
+%                       cars(j) = []; % odebrat ze sledovanych vozidel
+                        to_remove = [to_remove j];
+                    end
+                end
+                
             end
             PP = A*cars(j).P*A' + cars(j).Q;
             Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk);
+            
+            % predikce polohy
             if cars(j).x(1) == 0 % aby vektor x nezacinal nulama, #XXX: asi by slo napsat lip
                 cars(j).x(1,:) = (xp + Kk*([cc(1),cr(1)]' - Hk*xp))';
                 ck = 1; % jenom pro pripad, ze by to naslo najednou vic aut
             else
-                cars(j).x(end+1,:) = (xp + Kk*([cc(ck),cr(ck)]' - Hk*xp))';
-            end
+                if size(cc,2) == 0 % vycerpali jsme predcasne sledovane body
+                    a = round(cars(j).x(end,1:2)); %TODO: dodelat kdyz se dostane do zakrytu jineho auta
+                    if a==1      % mimo sledovane pole
+                    else         % schovane/sloucene s jinym vozidlem
+                    end
+                else             % aktualizace podle podle merenych bodu
+                    cars(j).x(end+1,:) = (xp + Kk*([cc(ck),cr(ck)]' - Hk*xp))';
+                end
+            end %
             cars(j).P = (eye(4)-Kk*Hk)*PP;
             
-            cc(ck) = []; % remove used elements
+            cc(ck) = []; % odeber prirazene centroidy
             cr(ck) = [];
             
-            a = round(cars(j).x(end,1:2));
-            
-            %zapocist, jestli bude v nasledujicim kroce za prahem
-            if LRp(a(2),a(1)) == 1 
-                 if counted_cars(size(counted_cars,1)).x(1) == 0
-                    counted_cars(1) = cars(j);
-                 else
-                   counted_cars(size(counted_cars,1)) = cars(j);
-                 end
-                 cars(j) = [];
-            end
+        end % prediction loop
+        
+        if size(to_remove,2)>0
+            % nelze odebirat primo ve smycce
+            cars(to_remove) = [];
         end
-        
-        
         toc
         
         %plot kalman prediction

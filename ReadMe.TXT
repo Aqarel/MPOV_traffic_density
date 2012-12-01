@@ -18,9 +18,10 @@ http://www.inf.ed.ac.uk/teaching/courses/av/index.html
 Problémy:
 - detekce pruhu - muže je definovat uživatel? Jak rešit, když v pruhu projede jen nekolik málo aut -- myslim, ze je vyresene :)
 - má detekce aut probíhat v reálném case? -- Pochybuju, ze se to vubec da v matlabu implementovat
-- okolo 216 snimku algritmus zkolabuje, pravdepodobne mrak, nebo neco to rozhodi. Treba si vic pohrat s prahama. Monza ten median pomuze.
-	- nemelo by stacit delat prumer treba z 30 snimku? viz diplomka v doc
+
 - Tahle posledni metoda je strasne vykonove narocna, co ji delat treba jednou za sec a pak ty stredy vyuzit pro shlukovou analyzu na jednoduchou derivaci snimku?
 	- zkusit se to muze, ale nejdriv bych zkusil snizit rozliseni videa
 	- znacne jsem zrychlil detekci, ale rychlejsi to uz asi nebude, chtelo by to CUDA nebo obdobu.
 - v repu je stara verze get_background - script run nejde tedy spustit
+
+- filtrovat fiktivni objekty
