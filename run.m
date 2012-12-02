@@ -7,7 +7,7 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('../00012.avi'); %nactu video
+trafficObj = mmreader('00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
@@ -18,17 +18,15 @@ width = 2; %velikost znacici kostky
 disp('getting bacground image...');
 try
     bcg= double(imread('bcg.bmp'));
-    %edg_bcg= double(imread('edg_bcg.bmp'));
 catch Me
     bcg = get_background(trafficObj,50);
     imwrite(uint8(bcg), 'bcg.bmp');
-    %imwrite(uint8(edg_bcg), 'edg_bcg.bmp');
 end
 
 [MR,MC] = size(bcg);
-
-DOLNI_PRAH = 740;
-HORNI_PRAH = 110;
+tt=1;
+DOLNI_PRAH = 750;
+HORNI_PRAH = 80;
 COUNTED = 0;
 
 % Kalman filter initialization
@@ -45,9 +43,9 @@ x=zeros(1,4);
 xp_init = [MC/2,MR/2,0,0]';
 % strukt init
 
-s_init = struct('R', Rk, 'Q', Q, 'P',P, 'x', x); % init struct
-cars = s_init; % structure array
-counted_cars = s_init;
+s_init = struct('R', Rk, 'Q', Q, 'P', P, 'x', x); % init struct
+cars = struct('R', {}, 'Q', {}, 'P', {}, 'x', {}); % aktualne sledovane
+counted_cars = cars; % ukonceno sledovani
 
 disp('separating traffic lines...')
 trafficLane = GetTrafficLane(bcg,0);
@@ -56,11 +54,8 @@ R = trafficLane.surfRight(:,:,1) + trafficLane.surfRight(:,:,2);
 LR = L+R;
 
 % generuje hranice, kde se vuz prestane sledovat
-Lp = L;
-Lp(1:DOLNI_PRAH,:)=0;
-Rp = R;
-Rp(HORNI_PRAH:end, :)=0;
-LRp = Lp+Rp;
+LRp = LR;
+LRp(HORNI_PRAH:DOLNI_PRAH,:) = 0;
 
 fig = figure(1);
 subplot(1,2,1);
@@ -70,7 +65,7 @@ disp('counting cars...')
 
 for i=1:nframes
     tic
-    waitbar(i/nframes, h);
+    waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
     I = imadd(imfilter(I,H),I); % posilit hrany
     D = uint8(I./bcg); % rozdiln smiku od pozadi
@@ -89,7 +84,7 @@ for i=1:nframes
     subplot(1,2,2);
     imshow(bw,[]);
     
-    if ~isempty(L1)
+    if ~isempty(L1) 
         centroids = cat(1,L1.Centroid);
         centroids = round(centroids(idx, 1:2)); % delete noise
         b = [];
@@ -99,12 +94,12 @@ for i=1:nframes
             end
         end
         title(sprintf(' sledovanych objektu: %d\n celkem vozidel: %d'...
-                        , sum(idx), COUNTED));
+                        , size(cars,2), COUNTED));
         hold on
         co = centroids(b,:);
 %         centroids(b,:) = [];
         if size(co,1)>0 % mark centroids - not counted
-            plot(co(1), co(2), 'ro'); 
+            plot(co(1), co(2), 'rd'); 
         end 
         
         hold on
@@ -114,36 +109,38 @@ for i=1:nframes
             rectangle('Position',boxes(r,:));
         end
         cc = centroids(:,1);
+        cc(b) = [];
         cr = centroids(:,2);
+        cr(b) = [];
         subplot(1,2,2);
         plot(cc, cr, 'b*');
         plot(centroids(b,1), centroids(b,2), 'bo');
         
         %kalman - predikce polohy vozu
 
-        while size(cars,2)-sum(idx)+size(b,2)< 0% add new detected car
-                cars(size(cars,2)+1) = s_init;
-                COUNTED = COUNTED+1;
+        while size(cars,2)-sum(idx)+size(b,2)< 0% pridej vozidlo
+            cars(size(cars,2)+1) = s_init;
+            COUNTED = COUNTED+1;
         end
                 
         to_remove = [];
         for j = 1:size(cars,2)
             if cars(j).x(1) == 0
                 xp = xp_init;
+                ck=1;
             else
                 xp=A*cars(j).x(end,:)' + Bu;
-                dx = cc - cars(j).x(end,1); % prirazeni spravneho bodu
-                dy = cr - cars(j).x(end,2);
+                
+                % prirazeni spravneho bodu
+                % TODO: mame vic aut, nez centroidu -> hledat auto, ktere
+                %       je v zakrytu
+                dx = centroids(:,1) - cars(j).x(end,1); 
+                dy = centroids(:,2) - cars(j).x(end,2);
                 d = dx.^2 + dy.^2;
                 ck = find(d == min(d)); % index hledaneho centroidu
-                for bb = b % mame vozilo(a) mame mimo slodovane pruhy
-                    if sum([cc(ck) cr(ck)] == centroids(bb,:)) == 2 % vozidlo se dostalo za prah
-                      if counted_cars(1).x(1) == 0
-                         counted_cars(1) = cars(j); %prvni zapoctene auto
-                      else
-                         counted_cars(size(counted_cars,2)+1) = cars(j);
-                      end
-%                       cars(j) = []; % odebrat ze sledovanych vozidel
+                for bb = 1:size(co,1) % mame vozilo(a) mame mimo slodovane pruhy
+                    if sum(centroids(ck,:) == co(bb,:)) == 2 % vozidlo se dostalo za prah
+                        counted_cars(size(counted_cars,2)+1) = cars(j);
                         to_remove = [to_remove j];
                     end
                 end
@@ -154,22 +151,19 @@ for i=1:nframes
             
             % predikce polohy
             if cars(j).x(1) == 0 % aby vektor x nezacinal nulama, #XXX: asi by slo napsat lip
-                cars(j).x(1,:) = (xp + Kk*([cc(1),cr(1)]' - Hk*xp))';
+                cars(j).x(1,:) = (xp + Kk*([cc(1),cr(1)]' - Hk*xp))'; % nove je vzdy na konci, proto zbyva posledni souradnice
                 ck = 1; % jenom pro pripad, ze by to naslo najednou vic aut
+                cc(1) = [];
+                cr(1) = [];
             else
-                if size(cc,2) == 0 % vycerpali jsme predcasne sledovane body
-                    a = round(cars(j).x(end,1:2)); %TODO: dodelat kdyz se dostane do zakrytu jineho auta
-                    if a==1      % mimo sledovane pole
-                    else         % schovane/sloucene s jinym vozidlem
-                    end
-                else             % aktualizace podle podle merenych bodu
-                    cars(j).x(end+1,:) = (xp + Kk*([cc(ck),cr(ck)]' - Hk*xp))';
-                end
+                cars(j).x(end+1,:) = (xp + Kk*([centroids(ck,1),centroids(ck,2)]' - Hk*xp))';
+                
+                ck2=find(centroids(ck,1) == cc);
+                centroids(ck,:) = [];
+                cc(ck2) = []; % odeber prirazene centroidy
+                cr(ck2) = [];
             end %
             cars(j).P = (eye(4)-Kk*Hk)*PP;
-            
-            cc(ck) = []; % odeber prirazene centroidy
-            cr(ck) = [];
             
         end % prediction loop
         
@@ -177,7 +171,8 @@ for i=1:nframes
             % nelze odebirat primo ve smycce
             cars(to_remove) = [];
         end
-        toc
+        
+        tt = toc;
         
         %plot kalman prediction
         for j = 1:size(cars,2)
