@@ -7,7 +7,7 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('00012.avi'); %nactu video
+trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
@@ -25,7 +25,7 @@ end
 
 [MR,MC] = size(bcg);
 tt=1;
-DOLNI_PRAH = 750;
+DOLNI_PRAH = 760;
 HORNI_PRAH = 80;
 COUNTED = 0;
 
@@ -63,7 +63,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 
 
-for i=1:nframes
+for i=240:nframes
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -74,8 +74,8 @@ for i=1:nframes
     D = bgremove(I,bcg, 30);
     bw = bwmorph(D,'close'); %erode to remove small moise
 
-    cc = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
-    L1 = regionprops(cc , {'Centroid', 'Area','BoundingBox'});
+    ccbw = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
+    L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox'});
     idx = [L1.Area] > 1500; %vyprat pouze plochy s velkou plochou
 
     subplot(1,2,1);
@@ -86,7 +86,13 @@ for i=1:nframes
     
     if ~isempty(L1) 
         centroids = cat(1,L1.Centroid);
-        centroids = round(centroids(idx, 1:2)); % delete noise
+        centroids = round(centroids(idx, 1:2)); % pouze vybrane centroidy
+        
+%         if size(cars,2)<size(centroids,1) % vozidlo je pravdepodobne v zakrytu - ziskani souradnic pixelu
+%             L = regionprops(ccbw,'PixelList');
+%             pl = L(idx);
+%         end
+        
         b = [];
         for j=1:size(centroids,1)  % delete centroids in off area
             if LRp(centroids(j,2),centroids(j,1)) == 1
@@ -99,7 +105,7 @@ for i=1:nframes
         co = centroids(b,:);
 %         centroids(b,:) = [];
         if size(co,1)>0 % mark centroids - not counted
-            plot(co(1), co(2), 'rd'); 
+            plot(co(1), co(2), 'rd'); % nekdy oznaci divnou chybu O_o
         end 
         
         hold on
@@ -129,25 +135,37 @@ for i=1:nframes
                 xp = xp_init;
                 ck=1;
             else
-                xp=A*cars(j).x(end,:)' + Bu;
+                xp=A*cars(j).x(end,:)' + Bu; % kalman - 1. krok
                 
-                % prirazeni spravneho bodu
-                % TODO: mame vic aut, nez centroidu -> hledat auto, ktere
-                %       je v zakrytu
                 dx = centroids(:,1) - cars(j).x(end,1); 
                 dy = centroids(:,2) - cars(j).x(end,2);
                 d = dx.^2 + dy.^2;
                 ck = find(d == min(d)); % index hledaneho centroidu
-                for bb = 1:size(co,1) % mame vozilo(a) mame mimo slodovane pruhy
-                    if sum(centroids(ck,:) == co(bb,:)) == 2 % vozidlo se dostalo za prah
-                        counted_cars(size(counted_cars,2)+1) = cars(j);
-                        to_remove = [to_remove j];
+                
+                if size(cars,2)>size(centroids,1) % vozidlo je pravdepodobne v zakrytu - overeni spravnosti prirazeni centroidu
+                    if abs(dx(ck)+dy(ck))>2*sum(abs(cars(j).x(end,3:4))) && size(cars(j).x,1)>1 % pokud je odchylka vetsi, nez dvojnasobek posledni predikce
+                        cc = [cars(j).x(end,1); cc]; 
+                        cr = [cars(j).x(end,2); cr];
+                        centroids = [[cc(1) cr(1)]; centroids];%#ok<*AGROW>
+                        ck = 1;
+                    end    
+                end
+                
+                if size(ck)>0 % procistit pouze pokud je prikazen centroid k vozidlu
+                    for bb = 1:size(co,1) % mame vozilo(a) mame mimo slodovane pruhy
+                     if sum(centroids(ck,:) == co(bb,:)) == 2 % vozidlo se dostalo za prah
+                         counted_cars(size(counted_cars,2)+1) = cars(j);
+                         to_remove = [to_remove j];
+                     end
                     end
+                else % vsechny nalezene centroidy uz byly prirazeny, proto bude novy stred podle posledni predikce
+                    centroids = cars(j).x(end,1:2);
+                    ck = 1;
                 end
                 
             end
-            PP = A*cars(j).P*A' + cars(j).Q;
-            Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk);
+            PP = A*cars(j).P*A' + cars(j).Q; % aktualizace 
+            Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk); % aktualizace kalmanova zesileni
             
             % predikce polohy
             if cars(j).x(1) == 0 % aby vektor x nezacinal nulama, #XXX: asi by slo napsat lip
