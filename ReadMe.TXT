@@ -25,3 +25,11 @@ Problémy:
 - v repu je stara verze get_background - script run nejde tedy spustit
 
 - filtrovat fiktivni objekty
+
+
+Problémové úseky (snimky):
+
+Video 00013.avi
+930 - auto zmeni svuj centroid  a je zapocitano x2
+1728 - auto zmeni svuj centroid  a je zapocitano x2, pak hodne aut
+2500 - kamion pocitan x2
