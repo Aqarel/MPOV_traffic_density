@@ -41,8 +41,8 @@ x=zeros(1,4);
 xp_init = [MC/2,MR/2,0,0]';
 % strukt init
 
-s_init = struct('R', Rk, 'Q', Q,  'P', P,  'x',  x, 'centroid', [0 0]); % init struct
-cars   = struct('R', {}, 'Q', {}, 'P', {}, 'x', {}, 'centroid', {}); % aktualne sledovane
+s_init = struct('R', Rk, 'Q', Q,  'P', P,  'x',  x, 'centroid', [0 0], 'bb', [0 0 0 0]); % init struct
+cars   = struct('R', {}, 'Q', {}, 'P', {}, 'x', {}, 'centroid', {}, 'bb', {}); % aktualne sledovane
 counted_cars = cars; % ukonceno sledovani
 
 disp('separating traffic lines...')
@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 
 
-for i=1:nframes
+for i=250:nframes
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -147,29 +147,37 @@ for i=1:nframes
                 cars(idx).centroid = centroids(j,:);
             end
         end
-                
+        to_remove = [];        
         for j = 1:size(cars,2)
             if cars(j).x(1) == 0
                 xp = xp_init;
             else
                 xp=A*cars(j).x(end,:)' + Bu; % kalman - 1. krok
-                
-                %TODO: podminka kdy umazat a kdy interpolovat
-%                 %                 if LRp(centroids(j,2), centroids(j,1)) == 1
-%                     % vozidlo se dostalo mimo sledovanou oblast
-%                     counted_cars(size(counted_cars,2)+1) = cars(idx); % ulozit pro naslednou analyzu
-%                     cars(idx) = []; % smazat ze seznamu sledovanych
-%                 end
 
                 % pokud nebyl pridelen centroid
-                if sum(cars(j).centroid == 0) && size(cars(j).x,1)>1 
+                if sum(cars(j).centroid == 0) % vozidlo se dostalo mimo sledovanou oblast, nebo do zakrytu jineho vozu 
+                    match = 0;
+                    for k = 1:size(co,1)
+                        d = co(k,:) - cars(j).x(end,1:2); 
+                        if sum(abs(d)<abs(3*cars(j).x(end,3:4))) == 2
+                            match = 1;
+                            break
+                        end
+                    end
+                    if match % prida vuz na seznam pro odstraneni ze sledovani
+                        to_remove = [to_remove j]; %#ok<AGROW>
+                    else % bude treba odhadovat pozici
                         y = interp1(cars(j).x(:,1), cars(j).x(:,2), xp(1),'linear','extrap'); % zarucime, ze auto nebude menit smer
                          % Pouzijeme bod z predikce a z interpolace
                          % presuneme na primku 
                         cars(j).centroid = [xp(1) y];
-                end    
+                        if LRp(round(y), round(xp(1))) == 1 % v nasledujicim kroce bude vuz mimo oblast sledovani
+                            to_remove = [to_remove j]; %#ok<AGROW>
+                        end
+                    end
+                end  % nalezeni/odhad centroidu  
                 
-            end % endif
+            end % endif prvni krok - odhad pozice
             PP = A*cars(j).P*A' + cars(j).Q; % aktualizace 
             Kk = PP*Hk'*1/(Hk*PP*Hk'+Rk); % aktualizace kalmanova zesileni
             
@@ -182,7 +190,12 @@ for i=1:nframes
             cars(j).P = (eye(4)-Kk*Hk)*PP;
             
         end % prediction loop
-    
+        
+        for j = to_remove% smazat ze seznamu sledovanych
+            counted_cars(size(counted_cars,2)+1) = cars(j); % ulozit pro naslednou analyzu
+            cars(j) = []; 
+        end
+        
         tt = toc;
         
         %plot kalman prediction
