@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 
 
-for i=250:nframes
+for i=265:nframes
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -82,23 +82,24 @@ for i=250:nframes
     subplot(1,2,2);
     imshow(bw,[]);
     
-    if ~isempty(L1) 
+    if ~isempty(L1)                 % object found
         centroids = cat(1,L1.Centroid);
         centroids = round(centroids(idx, 1:2)); 
 
-        b = [];
+        cOffArea = [];
         for j=1:size(centroids,1)  % delete centroids in off area
             if LRp(centroids(j,2),centroids(j,1)) == 1
-                b = [b j]; %#ok<AGROW>
+                cOffArea = [cOffArea j]; %#ok<AGROW>
             end
         end
-        title(sprintf(' sledovanych objektu: %d\n celkem vozidel: %d'...
-                        , size(cars,2), COUNTED));
+        
         hold on
-        co = centroids(b,:);
+        co = centroids(cOffArea,:);
         if size(co,1)>0 % mark centroids - not counted
             plot(co(1), co(2), 'rd'); % nekdy oznaci divnou chybu O_o
         end 
+        line([0 1920],[HORNI_PRAH HORNI_PRAH],'color','g');
+        line([0 1920],[DOLNI_PRAH DOLNI_PRAH],'color','g');
         
         hold on
         boxes = cat(1,L1.BoundingBox);
@@ -106,17 +107,17 @@ for i=250:nframes
         for r=find(idx==1) % draw bounding boxes
             rectangle('Position',boxes(r,:));
         end
-        cc = centroids(:,1);
-        cc(b) = [];
-        cr = centroids(:,2);
-        cr(b) = [];
+        cx = centroids(:,1);
+        cx(cOffArea) = [];
+        cy = centroids(:,2);
+        cy(cOffArea) = [];
         subplot(1,2,2);
-        plot(cc, cr, 'b*'); % centroidy ve sledovane oblasti
-        plot(centroids(b,1), centroids(b,2), 'bo'); % centroidy mimo sedovanou oblast
-        centroids(b,:) = [];
+        plot(cx, cy, 'b*'); % centroidy ve sledovane oblasti
+        plot(centroids(cOffArea,1), centroids(cOffArea,2), 'bo'); % centroidy mimo sedovanou oblast
+        centroids(cOffArea,:) = [];
         %kalman - predikce polohy vozu
 
-        while size(cars,2)-sum(idx)+size(b,2)< 0% pridej vozidlo
+        while (sum(idx) - size(cars,2) - size(cOffArea,2)) > 0% pridej vozidlo, pocetAut - pocetSledAut - autMimoOblast
             cars(size(cars,2)+1) = s_init;
             COUNTED = COUNTED+1;
         end
@@ -127,12 +128,12 @@ for i=250:nframes
         
         for j = 1:size(centroids,1) %prirazeni nalezenych centroidu ke sledovanym vozidlum
             idx = 0;  % index hledaneho vozu
-            min = MC; % dosud nejmensi vzdalenost
+            min = 2300; % dosud nejmensi vzdalenost, vzdalenost z rohu do rohu
             for k = 1:size(cars,2)       
                 if cars(k).centroid ~= 0 % toto vozidlo uz ma prideleny centroid
                     continue              % pokracuj na dalsi
                 end
-                if cars(k).x(1) == 0 && LRp(centroids(j,2), centroids(j,1)) == 1
+                if cars(k).x(1) == 0 && LRp(centroids(j,2), centroids(j,1)) == 1 
                     continue % nove sledovany vuz nedostane centroid mimo sledovanou oblast
                 end
                 dx = centroids(j,1) - cars(k).x(end,1); 
@@ -202,6 +203,9 @@ for i=250:nframes
         for j = 1:size(cars,2)
             plot(cars(j).x(:,1),cars(j).x(:,2), 'r-');
         end
+        
+        title(sprintf(' sledovanych objektu: %d\n celkem vozidel: %d'...
+                        , size(cars,2), COUNTED));
         hold off
         
     end
