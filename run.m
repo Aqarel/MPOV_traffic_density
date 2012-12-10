@@ -30,8 +30,8 @@ COUNTED = 0;
 % Kalman filter initialization
 Rk=[[0.0645,0.0045]',[0.0045,0.00445]'];
 Hk=[[1,0]',[0,1]',[0,0]',[0,0]'];
-Q=0.01*eye(4);
-P = 100*eye(4);
+Q=0.15*eye(4);
+P = 14*eye(4);
 dt=1;
 A=[[1,0,0,0]',[0,1,0,0]',[dt,0,1,0]',[0,dt,0,1]'];
 g = 6; % pixels^2/time step
@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 
 
-for i=265:nframes
+for i=250:nframes %250, 265, 
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
