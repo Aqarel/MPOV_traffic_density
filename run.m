@@ -1,4 +1,4 @@
-clc;clear all; close all;
+clc;clear variables; close all;
 %check for presence of Intel Integrated Performance Primitives (Intel IPP) library
 if ippl
     iptsetpref('UseIPPL', true)
@@ -113,7 +113,7 @@ for i=1:nframes
         subplot(1,2,2);
         plot(cc, cr, 'b*'); % centroidy ve sledovane oblasti
         plot(centroids(b,1), centroids(b,2), 'bo'); % centroidy mimo sedovanou oblast
-        
+        centroids(b,:) = [];
         %kalman - predikce polohy vozu
 
         while size(cars,2)-sum(idx)+size(b,2)< 0% pridej vozidlo
@@ -125,12 +125,15 @@ for i=1:nframes
             cars(j).centroid = 0;
         end
         
-        for j = 1:size(centroids,1) %prirazeni nalezenych centroidu k vozidlum
+        for j = 1:size(centroids,1) %prirazeni nalezenych centroidu ke sledovanym vozidlum
             idx = 0;  % index hledaneho vozu
             min = MC; % dosud nejmensi vzdalenost
             for k = 1:size(cars,2)       
                 if cars(k).centroid ~= 0 % toto vozidlo uz ma prideleny centroid
                     continue              % pokracuj na dalsi
+                end
+                if cars(k).x(1) == 0 && LRp(centroids(j,2), centroids(j,1)) == 1
+                    continue % nove sledovany vuz nedostane centroid mimo sledovanou oblast
                 end
                 dx = centroids(j,1) - cars(k).x(end,1); 
                 dy = centroids(j,2) - cars(k).x(end,2);
@@ -142,11 +145,6 @@ for i=1:nframes
             end
             if idx % pro tento nectroid jsme nasli prislusne sledovane vozidlo
                 cars(idx).centroid = centroids(j,:);
-                if LRp(centroids(j,2), centroids(j,1)) == 1
-                    % vozidlo se dostalo mimo sledovanou oblast
-                    counted_cars(size(counted_cars,2)+1) = cars(idx); % ulozit pro naslednou analyzu
-                    cars(idx) = []; % smazat ze seznamu sledovanych
-                end
             end
         end
                 
@@ -155,6 +153,13 @@ for i=1:nframes
                 xp = xp_init;
             else
                 xp=A*cars(j).x(end,:)' + Bu; % kalman - 1. krok
+                
+                %TODO: podminka kdy umazat a kdy interpolovat
+%                 %                 if LRp(centroids(j,2), centroids(j,1)) == 1
+%                     % vozidlo se dostalo mimo sledovanou oblast
+%                     counted_cars(size(counted_cars,2)+1) = cars(idx); % ulozit pro naslednou analyzu
+%                     cars(idx) = []; % smazat ze seznamu sledovanych
+%                 end
 
                 % pokud nebyl pridelen centroid
                 if sum(cars(j).centroid == 0) && size(cars(j).x,1)>1 
