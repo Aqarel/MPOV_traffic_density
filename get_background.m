@@ -2,6 +2,7 @@ function [ bcg ] = get_background( video, n )
 % Function is trying to get background of the video scene by averaging
 % video - video 
 % n - count of averaged frames
+% bcg – model of background
 
 nframes = get(video, 'NumberOfFrames');
 bcg = zeros(video.Height, video.Width, 3);
