@@ -1,18 +1,17 @@
-function [ R ] = get_background( Obj, n )
-%GET_BACKGROUND se snazi prumerovanim obrazu dostat pozadi sceny
-% n - udava pocet prumerovanych snimku
+function [ bcg ] = get_background( video, n )
+% Function is trying to get background of the video scene by averaging
+% video - video 
+% n - count of averaged frames
 
-nframes = get(Obj, 'NumberOfFrames');
-R = zeros(Obj.Height,Obj.Width,3);
-%S(:,:,1) = double(rgb2gray(read(Obj, 1)));
+nframes = get(video, 'NumberOfFrames');
+bcg = zeros(video.Height, video.Width, 3);
 h = waitbar(0, 'Prumerovani pozadi');
-for i=1:round(nframes/n):nframes
-    waitbar(i/nframes, h);
-    %R = R + double(rgb2gray(read(Obj,i)));
-    R = R + double(read(Obj,i));
+for i=1:round(nframes / n):nframes
+    waitbar(i / nframes, h);
+    bcg = bcg + double(read(video, i));
 end
     
-R = R/n;
+bcg = bcg/n;
 close(h)
 
 end
