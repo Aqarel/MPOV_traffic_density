@@ -7,7 +7,7 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('../00012.avi'); %nactu video
+trafficObj = mmreader('../00013.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
@@ -61,19 +61,20 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=450:nframes %250, 265, 450
+for i=1728:nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
     I = imadd(imfilter(I,H),I); % posilit hrany
     D = uint8(I./bcg); % rozdiln smiku od pozadi
-    M = uint8(D<0.9); % binarni maska rozdilnych pixelu
+    M = uint8(D<0.99); % binarni maska rozdilnych pixelu
     bcg = bcg + double((0.15*(1-M)+0.03*M).*D); %aktualizovat pozadi
     D = bgremove(I,bcg, 30);
     bw = bwmorph(D,'close'); % erode to remove small moise
+    bw = imfill(bw,'holes');
 
     ccbw = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
-    L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox', 'extrema'});
+    L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox', 'FilledImage'});
     idx = [L1.Area] > 1500; % vyprat pouze plochy s velkou plochou
     
     subplot(1,2,1);
