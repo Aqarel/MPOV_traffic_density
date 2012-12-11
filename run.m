@@ -7,7 +7,7 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('../00013.avi'); %nactu video
+trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=1728:nframes %250, 265, 450
+for i=440:nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -75,7 +75,7 @@ for i=1728:nframes %250, 265, 450
 
     ccbw = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
     L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox', 'FilledImage'});
-    idx = [L1.Area] > 1500; % vyprat pouze plochy s velkou plochou
+    idx = [L1.Area] > 1900; % vyprat pouze plochy s velkou plochou
     
     subplot(1,2,1);
     imshow(uint8(I));
@@ -142,7 +142,7 @@ for i=1728:nframes %250, 265, 450
                 % pokud pribyl novy objekt, pak by doslo k chybnemu vypoctu
                 % vzdalenosti
                 if (cars(k).x(end,1) == 0) && (cars(k).x(end,2) == 0)  
-                    if min > 70     % Centroid je pøílš vzdálen od všech sledovaných aut  
+                    if min > 120     % Centroid je pøílš vzdálen od všech sledovaných aut  
                         idx = k;
                     end
                     cars(idx).centroid = centroids(j,:);
@@ -159,7 +159,7 @@ for i=1728:nframes %250, 265, 450
                 end
             end
             if idx % pro tento nectroid jsme nasli prislusne sledovane vozidlo
-                if min <= 70
+                if min <= 120
                     cars(idx).centroid = centroids(j,:);
                 else % pokud se prida a zaroven odebere jedno sledovane auto, jinak by se nove auto priradilo ke staremu
                     if (centroids(j,2) < (HORNI_PRAH + 50) && centroids(j,2) > (DOLNI_PRAH - 50))
@@ -168,6 +168,12 @@ for i=1728:nframes %250, 265, 450
                         COUNTED = COUNTED+1;
                     else
                         cars(idx).centroid = centroids(j,:);
+                        for q = 1:size(noCentroids,2)
+                           if cars(end).x(1) == 0
+                              cars(end) = []; 
+                              COUNTED = COUNTED-1;
+                           end
+                        end
                     end
                 end
             end
@@ -202,8 +208,12 @@ for i=1728:nframes %250, 265, 450
                              % Pouzijeme bod z predikce a z interpolace
                              % presuneme na primku 
                             cars(j).centroid = [xp(1) y];
-                            if LRp(round(y), round(xp(1))) == 1 % v nasledujicim kroce bude vuz mimo oblast sledovani
+                            if (xp(1) < 0) || (LRp(round(y), round(abs(xp(1)))) == 1) % v nasledujicim kroce bude vuz mimo oblast sledovani
                                 to_remove = [to_remove j]; %#ok<AGROW>
+                                noCentroids = noCentroids - 1;
+                                if noCentroids < 0 
+                                    noCentroids = 0;
+                                end
                             end
                         end
                     end
