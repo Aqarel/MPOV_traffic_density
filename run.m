@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=440:nframes %250, 265, 450
+for i=401:nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -95,10 +95,6 @@ for i=440:nframes %250, 265, 450
         end
         
         hold on
-        co = centroids(cOffArea,:);
-        if size(co,1)>0 % mark centroids - not counted
-            plot(co(1), co(2), 'rd'); % nekdy oznaci divnou chybu O_o
-        end 
         line([0 1920],[HORNI_PRAH HORNI_PRAH],'color','g');
         line([0 1920],[DOLNI_PRAH DOLNI_PRAH],'color','g');
         
@@ -117,7 +113,9 @@ for i=440:nframes %250, 265, 450
         plot(centroids(cOffArea,1), centroids(cOffArea,2), 'bo'); % centroidy mimo sedovanou oblast
         centroids(cOffArea,:) = [];
         %kalman - predikce polohy vozu
-
+        if i == 485
+           xxxxxxx = 3; 
+        end
         while (sum(idx) - size(cOffArea,2) - size(cars,2) + noCentroids) > 0% pridej vozidlo, pocetAut - autMimoOblast - pocetSledAut + sledAutaBezCen
             cars(size(cars,2)+1) = s_init;
             COUNTED = COUNTED+1;
@@ -142,8 +140,10 @@ for i=440:nframes %250, 265, 450
                 % pokud pribyl novy objekt, pak by doslo k chybnemu vypoctu
                 % vzdalenosti
                 if (cars(k).x(end,1) == 0) && (cars(k).x(end,2) == 0)  
-                    if min > 120     % Centroid je pøílš vzdálen od všech sledovaných aut  
+                    if (min > 120) && (centroids(j,2) > 300)     % Centroid je pøílš vzdálen od všech sledovaných aut  
                         idx = k;
+                    elseif  (min > 50) && (centroids(j,2) <= 300)
+                        idx = k;     
                     end
                     cars(idx).centroid = centroids(j,:);
                     idx = 0;
@@ -172,10 +172,21 @@ for i=440:nframes %250, 265, 450
                            if cars(end).x(1) == 0
                               cars(end) = []; 
                               COUNTED = COUNTED-1;
+                              disp('vymaz 1');
                            end
                         end
                     end
                 end
+            end
+        end
+        if (size(centroids,1) < size(cars,2)) && (noCentroids == 1) % vymaze falesne pridane auto - PS: auto jede, pak se pripoji a zas odpoji 
+            if size(cars(end).centroid,2) == 1
+               cars(end).centroid = [0 0]; 
+            end
+            if (cars(end).x(1) == 0) && (cars(end).centroid(1) == 0) && (cars(end).centroid(2) == 0)
+                cars(end) = []; 
+                COUNTED = COUNTED-1;
+                disp('vymaz 2');
             end
         end
         noCentroids = 0;
@@ -199,9 +210,6 @@ for i=440:nframes %250, 265, 450
                     if match % prida vuz na seznam pro odstraneni ze sledovani
                         to_remove = [to_remove j]; %#ok<AGROW>
                     else  % bude treba odhadovat pozici
-                        if i == 312
-                           xxxxxxx = 3; 
-                        end
                         if size(cars(j).x(:,1),1) > 1 % interp1 potrebuje alespon 2 body
                             noCentroids = noCentroids + 1;
                             y = interp1(cars(j).x(:,1), cars(j).x(:,2), xp(1),'linear','extrap'); % zarucime, ze auto nebude menit smer
