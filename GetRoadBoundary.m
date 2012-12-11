@@ -1,6 +1,6 @@
 function [bound] = GetRoadBoundary(road)
 % Function find and calculate boundary of two-lane road
-% imBcg - color background of traffic situation
+% road - color background of traffic situation
 % bound - return 3 lines - boundary of lane
 
 imSize = size(road);
