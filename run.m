@@ -12,7 +12,7 @@ nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
 
-% rec = avifile('motion3.avi', 'Compression', 'i420', 'fps', get(trafficObj, 'FrameRate'  ));
+rec = avifile('motion3.avi', 'Compression', 'i420', 'fps', get(trafficObj, 'FrameRate'  ));
 disp('getting bacground image...');
 try
     bcg= double(imread('bcg.bmp'));
@@ -24,7 +24,7 @@ end
 [MR,MC,z] = size(bcg);
 tt=1;
 DOLNI_PRAH = 760;
-HORNI_PRAH = 80;
+HORNI_PRAH = 200;
 COUNTED = 0;
 
 % Kalman filter initialization
@@ -61,13 +61,13 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=1:nframes %250, 265, 450
+for i=1090:1150%nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
     I = imadd(imfilter(I,H),I); % posilit hrany
     D = uint8(I./bcg); % rozdiln smiku od pozadi
-    M = uint8(D<0.9); % binarni maska rozdilnych pixelu
+    M = uint8(D<0.99); % binarni maska rozdilnych pixelu
     bcg = bcg + double((0.15*(1-M)+0.03*M).*D); %aktualizovat pozadi
     D = bgremove(I,bcg, 29);
     bw = bwmorph(D,'close'); % erode to remove small moise
@@ -256,12 +256,12 @@ for i=1:nframes %250, 265, 450
         hold off
         
     end
-%     rec = addframe(rec,  getframe(fig));
+    rec = addframe(rec,  getframe(fig));
 %     rec = addframe(rec, im2frame(uint8(bo), cmap));
     %rec = addframe(rec, uint8(ed));
 %     imshow(ed);
 end
 close(h)
-% rec = close(rec);
-clear(rec)
+rec = close(rec);
+clear('rec');
 
