@@ -7,7 +7,7 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('../00012.avi'); %nactu video
+trafficObj = mmreader('../00013.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
@@ -61,7 +61,7 @@ h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=401:nframes %250, 265, 450
+for i=1:nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
     I = double(read(trafficObj, i));
@@ -69,13 +69,13 @@ for i=401:nframes %250, 265, 450
     D = uint8(I./bcg); % rozdiln smiku od pozadi
     M = uint8(D<0.99); % binarni maska rozdilnych pixelu
     bcg = bcg + double((0.15*(1-M)+0.03*M).*D); %aktualizovat pozadi
-    D = bgremove(I,bcg, 30);
+    D = bgremove(I,bcg, 29);
     bw = bwmorph(D,'close'); % erode to remove small moise
     bw = imfill(bw,'holes');
 
     ccbw = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
     L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox', 'FilledImage'});
-    idx = [L1.Area] > 1900; % vyprat pouze plochy s velkou plochou
+    idx = [L1.Area] > 2100; % vyprat pouze plochy s velkou plochou
     
     subplot(1,2,1);
     imshow(uint8(I));
@@ -95,6 +95,7 @@ for i=401:nframes %250, 265, 450
         end
         
         hold on
+        co = centroids(cOffArea,:);
         line([0 1920],[HORNI_PRAH HORNI_PRAH],'color','g');
         line([0 1920],[DOLNI_PRAH DOLNI_PRAH],'color','g');
         
@@ -113,9 +114,6 @@ for i=401:nframes %250, 265, 450
         plot(centroids(cOffArea,1), centroids(cOffArea,2), 'bo'); % centroidy mimo sedovanou oblast
         centroids(cOffArea,:) = [];
         %kalman - predikce polohy vozu
-        if i == 485
-           xxxxxxx = 3; 
-        end
         while (sum(idx) - size(cOffArea,2) - size(cars,2) + noCentroids) > 0% pridej vozidlo, pocetAut - autMimoOblast - pocetSledAut + sledAutaBezCen
             cars(size(cars,2)+1) = s_init;
             COUNTED = COUNTED+1;
