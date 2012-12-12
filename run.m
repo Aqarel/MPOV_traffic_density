@@ -7,12 +7,12 @@ else
     disp('IPP not found')
 end
 
-trafficObj = mmreader('../00013.avi'); %nactu video
+trafficObj = mmreader('../00012.avi'); %nactu video
 nframes = get(trafficObj, 'NumberOfFrames'); %pocet snimku ve videu
 duration = get(trafficObj, 'Duration'); % delka videa
 H = fspecial('log',3,0.6);
 
-rec = avifile('motion3.avi', 'Compression', 'i420', 'fps', get(trafficObj, 'FrameRate'  ));
+rec = avifile('motion3.avi', 'fps', get(trafficObj, 'FrameRate'  )); %'Compression', 'i420'
 disp('getting bacground image...');
 try
     bcg= double(imread('bcg.bmp'));
@@ -23,9 +23,10 @@ end
 
 [MR,MC,z] = size(bcg);
 tt=1;
-DOLNI_PRAH = 760;
-HORNI_PRAH = 200;
+DOLNI_PRAH = 720;
+HORNI_PRAH = 80;
 COUNTED = 0;
+zapoctene_vozy=[ 0 0 0 0]; % zde se bude ukladat pocet zapoctenych aut pruhy jsou postupne zleva doprava
 
 % Kalman filter initialization
 Rk=[[0.0645,0.0045]',[0.0045,0.00445]'];
@@ -47,35 +48,40 @@ counted_cars = cars; % ukonceno sledovani
 
 disp('separating traffic lines...')
 trafficLane = GetTrafficLane(bcg,0);
-L = trafficLane.surfLeft(:,:,1) + trafficLane.surfLeft(:,:,2);
-R = trafficLane.surfRight(:,:,1) + trafficLane.surfRight(:,:,2);
-LR = L+R;
+pruhy = zeros(MR,MC,4);
+pruhy(:,:,1) = trafficLane.surfLeft(:,:,1);
+pruhy(:,:,2) = trafficLane.surfLeft(:,:,2);
+pruhy(:,:,3) = trafficLane.surfRight(:,:,1);
+pruhy(:,:,4) = trafficLane.surfRight(:,:,2);
+LR = sum(pruhy, 3);
 
 % generuje hranice, kde se vuz prestane sledovat
 LRp = LR;
 LRp(HORNI_PRAH:DOLNI_PRAH,:) = 0;
 
+fVideo = figure(10);
 fig = figure(1);
 subplot(1,2,1);
 h = waitbar(0, 'processing');
 disp('counting cars...')
 noCentroids = 0;
 
-for i=1090:1150%nframes %250, 265, 450
+for i=250:280%nframes %250, 265, 450
     tic
     waitbar(i/nframes, h, sprintf('EAT: %.2f minutes',(nframes-i)*tt/60));
+    set(0,'currentfigure',fig);
     I = double(read(trafficObj, i));
     I = imadd(imfilter(I,H),I); % posilit hrany
     D = uint8(I./bcg); % rozdiln smiku od pozadi
     M = uint8(D<0.99); % binarni maska rozdilnych pixelu
     bcg = bcg + double((0.15*(1-M)+0.03*M).*D); %aktualizovat pozadi
-    D = bgremove(I,bcg, 29);
+    D = bgremove(I,bcg, 25);
     bw = bwmorph(D,'close'); % erode to remove small moise
     bw = imfill(bw,'holes');
 
     ccbw = bwconncomp(bw.*LR); % separovat prvni jizdni pruh
     L1 = regionprops(ccbw , {'Centroid', 'Area','BoundingBox', 'FilledImage'});
-    idx = [L1.Area] > 2100; % vyprat pouze plochy s velkou plochou
+    idx = [L1.Area] > 3000; % vyprat pouze plochy s velkou plochou
     
     subplot(1,2,1);
     imshow(uint8(I));
@@ -184,7 +190,6 @@ for i=1090:1150%nframes %250, 265, 450
             if (cars(end).x(1) == 0) && (cars(end).centroid(1) == 0) && (cars(end).centroid(2) == 0)
                 cars(end) = []; 
                 COUNTED = COUNTED-1;
-                disp('vymaz 2');
             end
         end
         noCentroids = 0;
@@ -240,8 +245,16 @@ for i=1090:1150%nframes %250, 265, 450
         end % prediction loop
         
         for j = to_remove% smazat ze seznamu sledovanych
-            counted_cars(size(counted_cars,2)+1) = cars(j); % ulozit pro naslednou analyzu
-            cars(j) = []; 
+            if j <= size(cars,2) % car still exists?
+               counted_cars(size(counted_cars,2)+1) = cars(j); % ulozit pro naslednou analyzu
+               souradnice = abs(round(cars(j).x(end-1,1:2)));
+               for l = 1:4
+                   if  sum(sum(  pruhy(souradnice(:,2), souradnice(:,1), l))) > 0
+                       zapoctene_vozy(l) = zapoctene_vozy(l)+1;
+                   end
+               end
+               cars(j) = []; 
+            end
         end
         
         tt = toc;
@@ -256,10 +269,37 @@ for i=1090:1150%nframes %250, 265, 450
         hold off
         
     end
-    rec = addframe(rec,  getframe(fig));
-%     rec = addframe(rec, im2frame(uint8(bo), cmap));
-    %rec = addframe(rec, uint8(ed));
-%     imshow(ed);
+    set(0,'currentfigure',fVideo);
+    imshow(uint8(I));
+    hold on
+    axis off
+    line([0 1920],[HORNI_PRAH HORNI_PRAH],'color',[0 0 0], 'LineWidth', 2);
+    line([0 1920],[DOLNI_PRAH DOLNI_PRAH],'color',[0 0 0], 'LineWidth', 2);
+    for j = 1:size(centroids,1) % draw bounding boxes
+        for k = 1:size(L1,1)
+            if round(L1(k).Centroid) == centroids(j,:)
+                rectangle('Position',L1(k).BoundingBox,'LineWidth', 2,'EdgeColor','b');
+            end
+        end
+    end
+    for j = 1:size(cars,2)
+        plot(cars(j).x(:,1),cars(j).x(:,2), 'r-', 'LineWidth', 3);
+    end
+    plot(cx, cy, 'g*', 'MarkerSize',20, 'LineWidth', 3); % centroidy ve sledovane oblasti
+    
+    
+    rectangle('Position',[0,size(I,1)-130,size(I,2),130],'FaceColor',[0.8,0.8,0.8])
+    text(30, size(I,1)- 100, sprintf('Jízdní pruh 1: %d',zapoctene_vozy(1)), 'Color', 'b', 'FontSize',22);
+    text(480, size(I,1)- 100, sprintf('Jízdní pruh 2: %d',zapoctene_vozy(2)), 'Color', 'b', 'FontSize',22);
+    text(1000, size(I,1)- 100, sprintf('Jízdní pruh 3: %d',zapoctene_vozy(3)), 'Color', 'b', 'FontSize',22);
+    text(1450, size(I,1)- 100, sprintf('Jízdní pruh 4: %d',zapoctene_vozy(4)), 'Color', 'b', 'FontSize',22);
+    
+    text(30, size(I,1)- 50, sprintf('%d aut/min',round(zapoctene_vozy(1)/(i/30/60))), 'Color', 'b', 'FontSize',22);
+    text(480, size(I,1)- 50, sprintf('%d aut/min',round(zapoctene_vozy(2)/(i/30/60))), 'Color', 'b', 'FontSize',22);
+    text(1000, size(I,1)- 50, sprintf('%d aut/min',round(zapoctene_vozy(3)/(i/30/60))), 'Color', 'b', 'FontSize',22);
+    text(1450, size(I,1)- 50, sprintf('%d aut/min',round(zapoctene_vozy(4)/(i/30/60))), 'Color', 'b', 'FontSize',22);
+    
+    rec = addframe(rec,  getframe(fVideo));
 end
 close(h)
 rec = close(rec);

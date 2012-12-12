@@ -86,6 +86,8 @@ if ~isequal(FileName,0)                                     % If correct select 
     set(handles.edtOpen, 'String', FileName);
     set(handles.btnParamGen, 'Enable', 'on');
     [non name] = fileparts(FileName);                       % separe filen name and extension
+    handles.FilePath = [];
+    handles.FileName = [];
     handles.FilePath = FilePath;
     handles.FileName = name; 
     handles.Video = mmreader(fullfile(handles.FilePath, [handles.FileName '.avi'])); %nactu video
@@ -93,6 +95,12 @@ if ~isequal(FileName,0)                                     % If correct select 
         if exist(fullfile(FilePath, [name '.png']),'file') ~= 0 % Exists background ?
             set(handles.btnParamShow, 'Enable', 'on');
             set(handles.btnVideoGen, 'Enable', 'on');
+            if exist(fullfile(FilePath, [name '_out.avi']),'file') ~= 0
+                set(handles.btnVideoOpen, 'Enable', 'on');
+                set(handles.edtVideoGen, 'String', [handles.FileName '_out.avi']); 
+                handles.PlayVideo = fullfile(FilePath, [name '_out.avi']);
+            end
+            
             set(handles.edtParam, 'String', 'Úspìšnì naèteny');
             handles.ImageBcg = imread(fullfile(FilePath, [name '.png']));
             load(fullfile(FilePath, [name '.mat']));
@@ -171,6 +179,8 @@ imwrite(bcg,fullfile(handles.FilePath, [handles.FileName '.png']),'png');
 roadLane = GetTrafficLane(bcg,false);
 save(fullfile(handles.FilePath, [handles.FileName '.mat']),'roadLane');
 set(handles.btnParamShow, 'Enable', 'on');
+set(handles.edtParam, 'String', 'Úspìšnì naèteny');
+set(handles.btnVideoGen, 'Enable', 'on');
 handles.ImageBcg = bcg;
 handles.ImageParam = roadLane;
 guidata(hObject, handles);
@@ -218,10 +228,23 @@ function btnVideoGen_Callback(hObject, eventdata, handles)
 % hObject    handle to btnVideoGen (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-DetectTraffic(handles.ImageBcg,handles.ImageParam,handles.Video);
+[fin videoOut] = DetectTraffic(handles.ImageBcg,handles.ImageParam,handles.Video,handles.FilePath,handles.FileName);
+
+if fin == 1
+    set(handles.btnVideoOpen, 'Enable', 'on');
+    set(handles.edtVideoGen, 'String', [handles.FileName '_out.avi']);
+    handles.PlayVideo = videoOut;
+else
+    set(handles.btnVideoOpen, 'Enable', 'off');
+    set(handles.edtVideoGen, 'String', 'Není k dispozici');
+end
+
+guidata(hObject, handles);
+
 
 % --- Executes on button press in btnVideoOpen.
 function btnVideoOpen_Callback(hObject, eventdata, handles)
 % hObject    handle to btnVideoOpen (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+implay(handles.PlayVideo);
